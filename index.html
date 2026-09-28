@@ -1,11 +1,105 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nexus · Lista de tareas</title>
-</head>
-<body>
-<p>placeholder</p>
-</body>
-</html>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Nexus</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#0b0d12;--elev:#12151d;--card:#171b25;--line:rgba(255,255,255,.08);--text:#f4f1ea;--muted:#9aa3b5;--accent:#7c5cff;--ok:#3ee0b1;--high:#ff5d6c;--med:#ffb020}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:Outfit,system-ui,sans-serif;background:radial-gradient(900px 500px at -10% -10%,rgba(124,92,255,.28),transparent 55%),var(--bg);color:var(--text)}
+.app{max-width:720px;margin:0 auto;padding:18px 16px 96px}
+.brand{display:flex;gap:10px;align-items:center;margin-bottom:16px}
+.logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7c5cff,#4f8cff);display:grid;place-items:center;font-weight:800}
+h1{font-size:22px}
+.sub{color:var(--muted);font-size:13px}
+.composer{display:grid;gap:8px;background:var(--card);border:1px solid var(--line);padding:12px;border-radius:16px;margin:14px 0}
+input,select,button{font:500 15px Outfit;border-radius:12px;border:1px solid var(--line);padding:12px;background:var(--elev);color:var(--text)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.add{background:linear-gradient(135deg,#7c5cff,#4f8cff);color:#fff;border:0;font-weight:700}
+.list{display:flex;flex-direction:column;gap:10px}
+.task{display:grid;grid-template-columns:36px 28px 1fr auto;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px}
+.task.done .title{text-decoration:line-through;color:var(--muted)}
+.grip{height:40px;border-radius:8px;display:grid;place-items:center;background:rgba(124,92,255,.16);border:1px solid rgba(124,92,255,.35);color:#cbbdff}
+.check{width:22px;height:22px;border-radius:7px;border:1.5px solid var(--line);background:transparent}
+.task.done .check{background:var(--ok);border-color:var(--ok)}
+.title{font-weight:600}
+.meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.chip{font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.p-alta{color:var(--high)}
+.p-media{color:var(--med)}
+.p-baja{color:var(--ok)}
+.icon{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--muted)}
+.barwrap{margin:10px 0 16px}
+.bar{height:8px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden}
+.bar>span{display:block;height:100%;background:linear-gradient(90deg,#7c5cff,#3ee0b1);width:0}
+.filters{display:flex;gap:8px;overflow:auto;padding-bottom:8px}
+.filters button{white-space:nowrap;padding:8px 12px;border-radius:999px}
+.filters .on{background:rgba(124,92,255,.2);border-color:#7c5cff}
+.dock{position:fixed;left:16px;right:16px;bottom:16px;display:flex;gap:8px}
+.dock button{flex:1}
+.panel{display:none;position:fixed;inset:0;background:var(--bg);padding:20px 16px 90px;overflow:auto;z-index:20}
+.panel.open{display:block}
+.time{font-family:JetBrains Mono,monospace;font-size:42px;text-align:center}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin:10px 0;color:var(--muted)}
+</style></head><body>
+<div class="app">
+<div class="brand"><div class="logo">N</div><div><h1>Nexus</h1><div class="sub" id="dateLine">Hoy</div></div></div>
+<div class="barwrap"><div class="sub" id="pct">0%</div><div class="bar"><span id="bar"></span></div></div>
+<div class="filters" id="filters"></div>
+<form class="composer" id="form">
+<input id="taskInput" placeholder="Nueva tarea" required>
+<div class="row"><select id="cat"><option value="trabajo">Trabajo</option><option value="personal">Personal</option><option value="casa">Casa</option></select>
+<select id="prio"><option value="media">Media</option><option value="alta">Alta</option><option value="baja">Baja</option></select></div>
+<button class="add" type="submit">Añadir</button>
+</form>
+<div class="list" id="list"></div>
+</div>
+<div class="dock">
+<button onclick="document.getElementById('res').classList.toggle('open')">Recursos</button>
+<button id="themeBtn">Tema</button>
+</div>
+<div class="panel" id="res">
+<h1>Recursos</h1>
+<div class="time" id="pomo">25:00</div>
+<div class="row"><button id="pomoStart">Iniciar</button><button id="pomoReset">Reiniciar</button></div>
+<div class="card">Regla de 3: solo 3 tareas importantes hoy.</div>
+<div class="card">Si tarda menos de 2 minutos, hazlo ahora.</div>
+<button onclick="document.getElementById('res').classList.remove('open')">Cerrar</button>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const fmt=new Intl.DateTimeFormat('es-ES',{weekday:'long',day:'numeric',month:'long'});
+$('#dateLine').textContent=fmt.format(new Date());
+let filter='todas';
+let tasks=JSON.parse(localStorage.getItem('nexus-tasks')||'null')||[
+{id:1,title:'Definir 3 prioridades',cat:'trabajo',prio:'alta',done:false},
+{id:2,title:'Bloque de foco 60 min',cat:'trabajo',prio:'alta',done:false},
+{id:3,title:'Paseo 20 min',cat:'personal',prio:'media',done:false}
+];
+const save=()=>localStorage.setItem('nexus-tasks',JSON.stringify(tasks));
+const filters=['todas','pendientes','hechas','alta','trabajo','personal','casa'];
+function drawFilters(){$('#filters').innerHTML=filters.map(f=>`<button class="${f===filter?'on':''}" data-f="${f}">${f}</button>`).join('');}
+function matches(t){if(filter==='todas')return true;if(filter==='pendientes')return!t.done;if(filter==='hechas')return t.done;if(filter==='alta')return t.prio==='alta';return t.cat===filter;}
+function render(){
+ const vis=tasks.filter(matches);
+ $('#list').innerHTML=vis.length?vis.map(t=>`<article class="task ${t.done?'done':''}" data-id="${t.id}" draggable="true"><span class="grip">⋮⋮</span><button class="check" data-act="toggle"></button><div><div class="title">${t.title.replace(/[<>]/g,'')}</div><div class="meta"><span class="chip">${t.cat}</span><span class="chip p-${t.prio}">${t.prio}</span></div></div><div><button class="icon" data-act="edit">✎</button><button class="icon" data-act="del">✕</button></div></article>`).join(''):'<div class="sub">Nada aquí</div>';
+ const done=tasks.filter(t=>t.done).length; const pct=tasks.length?Math.round(done/tasks.length*100):0;
+ $('#pct').textContent=pct+'% hecho'; $('#bar').style.width=pct+'%'; drawFilters();
+}
+$('#form').onsubmit=e=>{e.preventDefault();tasks.unshift({id:Date.now(),title:$('#taskInput').value.trim(),cat:$('#cat').value,prio:$('#prio').value,done:false});$('#taskInput').value='';save();render();};
+$('#list').onclick=e=>{const b=e.target.closest('[data-act]');if(!b)return;const id=+e.target.closest('.task').dataset.id;const t=tasks.find(x=>x.id===id);if(b.dataset.act==='toggle')t.done=!t.done;if(b.dataset.act==='del')tasks=tasks.filter(x=>x.id!==id);if(b.dataset.act==='edit'){const n=prompt('Editar',t.title);if(n&&n.trim())t.title=n.trim();}save();render();};
+$('#filters').onclick=e=>{const b=e.target.closest('[data-f]');if(!b)return;filter=b.dataset.f;render();};
+let dragId=null;
+$('#list').ondragstart=e=>{const c=e.target.closest('.task');if(!c)return;dragId=+c.dataset.id;e.dataTransfer.setData('text/plain',dragId);};
+$('#list').ondragover=e=>e.preventDefault();
+$('#list').ondrop=e=>{e.preventDefault();const over=e.target.closest('.task');if(!over||dragId==null)return;const tid=+over.dataset.id;if(tid===dragId)return;const from=tasks.findIndex(t=>t.id===dragId);const [m]=tasks.splice(from,1);let to=tasks.findIndex(t=>t.id===tid);if(e.clientY>over.getBoundingClientRect().top+over.offsetHeight/2)to++;tasks.splice(to,0,m);save();render();};
+$('#themeBtn').onclick=()=>{document.body.style.background=document.body.dataset.light? '':'#f3efe6';document.body.dataset.light=document.body.dataset.light?'':'1';};
+let left=25*60,timer=null;
+function draw(){$('#pomo').textContent=String(Math.floor(left/60)).padStart(2,'0')+':'+String(left%60).padStart(2,'0');}
+$('#pomoStart').onclick=()=>{if(timer){clearInterval(timer);timer=null;$('#pomoStart').textContent='Iniciar';return;}$('#pomoStart').textContent='Pausa';timer=setInterval(()=>{left--;if(left<0)left=5*60;draw();},1000);};
+$('#pomoReset').onclick=()=>{clearInterval(timer);timer=null;left=25*60;$('#pomoStart').textContent='Iniciar';draw();};
+render();
+</script></body></html>
